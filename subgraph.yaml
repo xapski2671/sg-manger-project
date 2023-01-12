@@ -1,0 +1,26 @@
+specVersion: 0.0.1
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: CrowdFunder
+    network: goerli
+    source:
+      address: "0xc1297C76841E43b15FDc7f3C69A6C9C3aFecB1C8"
+      abi: CrowdFunder
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - CampaignAdded
+        - CampaignCanceled
+      abis:
+        - name: CrowdFunder
+          file: ./abis/CrowdFunder.json
+      eventHandlers:
+        - event: CampaignAdded(indexed address,indexed address,uint256,string,string,string,string[],uint256,uint256)
+          handler: handleCampaignAdded
+        - event: CampaignCanceled(indexed address)
+          handler: handleCampaignCanceled
+      file: ./src/crowd-funder.ts
