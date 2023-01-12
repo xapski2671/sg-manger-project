@@ -1,6 +1,6 @@
 specVersion: 0.0.4
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
   - kind: ethereum
     name: CrowdFunder
@@ -18,10 +18,11 @@ dataSources:
         - CampaignCanceled
       abis:
         - name: CrowdFunder
-          file: ./abis/CrowdFunder.json
+          file: CrowdFunder\abis\CrowdFunder.json
       eventHandlers:
-        - event: CampaignAdded(indexed address,indexed address,uint256,string,string,string,string[],uint256,uint256)
+        - event: CampaignAdded(indexed address,indexed
+            address,uint256,string,string,string,string[],uint256,uint256)
           handler: handleCampaignAdded
         - event: CampaignCanceled(indexed address)
           handler: handleCampaignCanceled
-      file: ./src/crowd-funder.ts
+      file: CrowdFunder\CrowdFunder.wasm
