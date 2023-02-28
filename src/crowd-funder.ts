@@ -1,61 +1,103 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { BigInt, store } from "@graphprotocol/graph-ts"
 import {
   CrowdFunder,
-  CampaignAdded,
-  CampaignFunded,
-  CampaignRemoved,
-  CampaignShrunk,
-  UserAdded
+  CampaignAdded as CampaignAddedEvent,
+  CampaignFunded as CampaignFundedEvent,
+  CampaignRemoved as CampaignRemovedEvent,
+  CampaignShrunk as CampaignShrunkEvent,
+  UserAdded as UserAddedEvent
 } from "../generated/CrowdFunder/CrowdFunder"
-import { ExampleEntity } from "../generated/schema"
+import { UserAdded, CampaignAdded, CampaignFunded, CampaignRemoved, CampaignShrunk } from "../generated/schema"
 
-export function handleCampaignAdded(event: CampaignAdded): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+export function handleCampaignAdded(event: CampaignAddedEvent): void {
+  let campaignAdded = CampaignAdded.load(event.params._campaignAddress.toHexString())
+  let userAdded = UserAdded.load(event.params._creator.toHexString())
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+  if(!campaignAdded){
+    campaignAdded = new CampaignAdded(event.params._campaignAddress.toHexString())
+    campaignAdded.funderCount = BigInt.fromString("0")
+    campaignAdded.funders = []
+  }
+  if(!userAdded){
+    userAdded = new UserAdded(event.params._creator.toHexString())
+    userAdded.createdCount = BigInt.fromString("0")
+    userAdded.backedCount = BigInt.fromString("0")
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+  campaignAdded.campaignAddress = event.params._campaignAddress
+  campaignAdded.creator = event.params._creator
+  campaignAdded.title = event.params._title
+  campaignAdded.description = event.params._description
+  campaignAdded.category = event.params._category
+  campaignAdded.tags = event.params._tags
+  campaignAdded.goalAmount = event.params._goalAmount
+  campaignAdded.duration = event.params._duration
+  campaignAdded.createdAt = event.block.timestamp
 
-  // Entity fields can be set based on event parameters
-  entity._campaignAddress = event.params._campaignAddress
-  entity._creator = event.params._creator
+  userAdded.createdCount = userAdded.createdCount!.plus(BigInt.fromString("1"))
 
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.campaignCounter(...)
-  // - contract.getCampaign(...)
+  campaignAdded.save()
+  userAdded.save()
 }
 
-export function handleCampaignFunded(event: CampaignFunded): void {}
+export function handleCampaignFunded(event: CampaignFundedEvent): void {
+  let campaignAdded = CampaignAdded.load(event.params._campaignAddress.toHexString())
+  let userAdded = UserAdded.load(event.params._funder.toHexString())
 
-export function handleCampaignRemoved(event: CampaignRemoved): void {}
+  if(!userAdded){
+    userAdded = new UserAdded(event.params._funder.toHexString())
+    userAdded.createdCount = BigInt.fromString("0")
+    userAdded.backedCount = BigInt.fromString("0")
+  }
 
-export function handleCampaignShrunk(event: CampaignShrunk): void {}
+  campaignAdded!.funders!.push(event.params._funder)
+  campaignAdded!.funderCount!.plus(BigInt.fromString("1"))
 
-export function handleUserAdded(event: UserAdded): void {}
+  userAdded.backedCount = userAdded.backedCount!.plus(BigInt.fromString("1"))
+
+  campaignAdded!.save()
+  userAdded.save()
+}
+
+export function handleCampaignRemoved(event: CampaignRemovedEvent): void {
+  let id = event.params._campaignAddress.toHexString()
+  store.remove("CampaignAdded", id)
+}
+
+export function handleCampaignShrunk(event: CampaignShrunkEvent): void {
+  let campaignAdded = CampaignAdded.load(event.params._campaignAddress.toHexString())
+  let userAdded = UserAdded.load(event.params._withdrawer.toHexString())
+
+  if(!userAdded){
+    userAdded = new UserAdded(event.params._withdrawer.toHexString())
+    userAdded.createdCount = BigInt.fromString("0")
+    userAdded.backedCount = BigInt.fromString("0")
+  }
+
+  campaignAdded!.funders!.filter(funder => funder != event.params._withdrawer)
+  campaignAdded!.funderCount!.minus(BigInt.fromString("1"))
+
+  userAdded.backedCount = userAdded.backedCount!.minus(BigInt.fromString("1"))
+  
+  campaignAdded!.save()
+  userAdded.save()
+}
+
+export function handleUserAdded(event: UserAddedEvent): void {
+  let userAdded = UserAdded.load(event.params._address.toHexString())
+
+  if(!userAdded){
+    userAdded = new UserAdded(event.params._address.toHexString())
+    userAdded.createdCount = BigInt.fromString("0")
+    userAdded.backedCount = BigInt.fromString("0")
+  }
+
+  userAdded.address = event.params._address
+  userAdded.username = event.params._username
+  userAdded.twitter = event.params._twitter
+  userAdded.email = event.params._email
+  userAdded.bio = event.params._bio
+  userAdded.createdAt = event.block.timestamp
+
+  userAdded.save()
+}
